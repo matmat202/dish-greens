@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When does the Dish turn green?</title>
+<meta name="description" content="26 years of satellite pictures of the Stanford Dish hills, gold to green, against the first soaking rain of each season.">
+<style>
+  :root { --bg: #fbfaf6; --fg: #1f1d18; --mute: #6a655a; --line: #d9d4c7; --rain: #1f5fa8; --card: #f2efe6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16150f; --fg: #ece8dc; --mute: #a39d8e; --line: #3a372e; --rain: #7fb2f0; --card: #221f18; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 12px; }
+  h2 { font-size: 1.2rem; margin: 36px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lede { font-size: 1.1rem; }
+  .mute { color: var(--mute); font-size: 0.93rem; }
+  .card { background: var(--card); border-radius: 10px; padding: 14px 16px; margin: 18px 0; }
+  .card b { display: block; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { fill: var(--fg); font-size: 12px; }
+  svg .tick { stroke: var(--line); }
+  svg .soak { fill: var(--rain); }
+  svg .gu { fill: none; stroke: var(--fg); stroke-width: 1.6; }
+  svg .ax text { fill: var(--mute); }
+  svg .diag { stroke: var(--line); stroke-dasharray: 3 3; }
+  svg .dot { fill: var(--fg); }
+  svg .dot.odd { fill: var(--rain); }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 0; font-size: 0.9rem; color: var(--mute); align-items: center; }
+  .key i { display: inline-block; vertical-align: -2px; margin-right: 6px; }
+  .ramp { width: 80px; height: 12px; border-radius: 2px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  details summary { cursor: pointer; padding: 10px 0; min-height: 44px; }
+  a { color: var(--rain); }
+</style>
+</head>
+<body>
+<main>
+  <h1>When does the Dish turn green?</h1>
+  <p class="lede" id="headline"></p>
+  <p id="lede2"></p>
+
+  <div class="card" id="now-card"><b id="now-season"></b><span id="now"></span></div>
+
+  <h2>Every season since 2000, gold to green</h2>
+  <p class="mute">One row per season, August on the left to July on the right. Each cell is the colour of the grass from a satellite, every <span id="step"></span> days.</p>
+  <svg id="stripes" role="img"></svg>
+  <div class="key">
+    <span><i class="ramp" id="ramp"></i>dry → green</span>
+    <span><svg width="10" height="12" style="display:inline;width:10px"><rect class="soak" x="3" y="0" width="3" height="12"/></svg> <span id="key-total"></span></span>
+    <span><svg width="12" height="12" style="display:inline;width:12px"><circle class="gu" cx="6" cy="6" r="4.5"/></svg> turned green</span>
+  </div>
+
+  <h2>The later the rain adds up, the later the green</h2>
+  <p class="mute" id="scatter-note"></p>
+  <svg id="scatter" role="img"></svg>
+  <p id="odd"></p>
+  <h2>What did not work: the first storm</h2>
+  <p id="failed"></p>
+
+  <details>
+    <summary>Every season, in numbers</summary>
+    <table id="table"><thead><tr><th>Season</th><th>First soaking week</th><th id="th-total"></th><th>Green</th><th>Gold again</th></tr></thead><tbody></tbody></table>
+  </details>
+
+  <h2>How this was measured</h2>
+  <p class="mute" id="method"></p>
+  <p class="mute">Satellite greenness: NASA MODIS MOD13Q1 and MYD13Q1 NDVI, 250 m, from the <a href="https://modis.ornl.gov/data/modis_webservice.html">ORNL DAAC subset service</a>. Rain: <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather</a> (ERA5 reanalysis) at the Dish. The colours are a gold-to-green ramp scaled by NDVI, not photographs; gold is also lighter than green, so the rows read without colour vision.</p>
+</main>
+<script src="dg-logic.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent, text) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const MON = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+const MDAY = [0, 31, 61, 92, 122, 153, 184, 212, 243, 273, 304, 334, 365];
+
+function stripes(data) {
+  const svg = $('stripes');
+  const rows = data.seasons.filter((s) => DG.cells(data, s.y).length);
+  // Drawn at the container's own width, so 12px text stays 12px on a phone.
+  const W = Math.max(320, Math.round(svg.getBoundingClientRect().width)), L = 58, R = 6, top = 18, rh = 14, gap = 3;
+  svg.dataset.w = W;
+  const H = top + rows.length * (rh + gap) + 4;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('aria-label', `Hill colour by season, ${rows[0].season} to ${rows[rows.length - 1].season}`);
+  const x = (d) => L + (d / 365) * (W - L - R);
+  const ax = el('g', { class: 'ax' }, svg);
+  MON.forEach((m, i) => { if (i % (W < 560 ? 3 : 2) === 0) el('text', { x: x(MDAY[i]) + 1, y: 12 }, ax, m); });
+  rows.forEach((s, i) => {
+    const y0 = top + i * (rh + gap);
+    const g = el('g', { class: 'row', 'data-season': s.season }, svg);
+    el('text', { x: 0, y: y0 + rh - 3 }, g, s.season);
+    const pts = DG.cells(data, s.y);
+    // Each cell spans halfway to its neighbours, so a composite is centred on its own day and
+    // a row's first and last cells run to the season's edges when within two steps (one
+    // composite lost to cloud).
+    const step = data.products === 'Terra' ? 16 : 8;
+    pts.forEach(([d, v], j) => {
+      const a = j ? (pts[j - 1][0] + d) / 2 : (d < 2 * step ? 0 : d - step / 2);
+      const b = j + 1 < pts.length ? (d + pts[j + 1][0]) / 2 : (d > 365 - 2 * step ? 365 : d + step / 2);
+      el('rect', { class: 'cell', x: x(a).toFixed(1), y: y0, width: Math.max(1, x(b) - x(a) + 0.4).toFixed(1), height: rh, fill: DG.colour(v), 'data-v': v }, g);
+    });
+    if (s.total_day) el('rect', { class: 'soak', x: (x(DG.dayOfSeason(s.total_day, s.y)) - 1.5).toFixed(1), y: y0 - 1, width: 3, height: rh + 2 }, g);
+    if (s.greenup) el('circle', { class: 'gu', cx: x(DG.dayOfSeason(s.greenup, s.y)).toFixed(1), cy: y0 + rh / 2, r: 4.5 }, g);
+  });
+  $('ramp').style.background = `linear-gradient(90deg, ${[0.28, 0.4, 0.52, 0.64, 0.75].map((v) => DG.colour(v)).join(',')})`;
+}
+
+function scatter(data) {
+  const svg = $('scatter');
+  const rows = DG.complete(data);
+  const W = Math.max(320, Math.round(svg.getBoundingClientRect().width)), H = Math.round(Math.min(380, W * 0.75)), L = 52, B = 34, T = 10, R = 10;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('aria-label', `Green-up date against the day ${data.total.mm} mm of rain had fallen, ${rows.length} seasons, correlation ${data.total.r}`);
+  const lo = 40, hi = 245;   // Sep 10 .. Apr 3: every rain-total day and green-up on record, with room
+  const x = (d) => L + ((d - lo) / (hi - lo)) * (W - L - R);
+  const y = (d) => H - B - ((d - lo) / (hi - lo)) * (H - B - T);
+  const ax = el('g', { class: 'ax' }, svg);
+  for (let i = 2; i <= 7; i++) {
+    el('line', { class: 'tick', x1: x(MDAY[i]), x2: x(MDAY[i]), y1: T, y2: H - B }, ax);
+    el('line', { class: 'tick', x1: L, x2: W - R, y1: y(MDAY[i]), y2: y(MDAY[i]) }, ax);
+    if (W >= 560 || i % 2 === 0) el('text', { x: x(MDAY[i]) + 2, y: H - B + 16 }, ax, MON[i] + ' 1');
+    el('text', { x: 0, y: y(MDAY[i]) + 4 }, ax, MON[i] + ' 1');
+  }
+  el('text', { x: L, y: H - 2 }, ax, `day ${data.total.mm} mm had fallen since Aug 1 →`);
+  el('line', { class: 'diag', x1: x(lo), y1: y(lo), x2: x(hi), y2: y(hi) }, svg);
+  el('text', { x: x(195), y: y(195) - 6 }, ax, 'same day');
+  const decs = rows.map((s) => s.rain_by_dec31).sort((a, b) => a - b);
+  const medDec = Math.round(decs[decs.length >> 1]);
+  const odd = rows.filter((s) => s.lag > data.stats.lag_q3 + (data.stats.lag_q3 - data.stats.lag_q1));
+  rows.forEach((s) => {
+    const sx = x(DG.dayOfSeason(s.total_day, s.y)), gy = y(DG.dayOfSeason(s.greenup, s.y));
+    el('circle', { class: 'dot' + (odd.includes(s) ? ' odd' : ''), cx: sx.toFixed(1), cy: gy.toFixed(1), r: 5, 'data-season': s.season }, svg);
+    if (odd.includes(s)) el('text', { x: sx + 8, y: gy + 4 }, svg, s.season);
+  });
+  const t = data.total, lo_ = t.loo;
+  $('scatter-note').textContent = `Each dot is a season: across, the day the rain since August 1 passed ${t.mm} mm; up, the day the hills turned green. Correlation ${t.r.toFixed(2)} over ${rows.length} seasons. Predicting each season from the others, this rule misses by ${lo_.total.mae} days on average, against ${lo_.calendar.mae} for "the usual date".`;
+  $('odd').textContent = odd.length
+    ? odd.map((s) => `${s.season}, in blue, waited ${s.lag} days after its first soaking week (${DG.fmt(s.soak)} to ${DG.fmt(s.greenup)}), the longest on record, but ${s.total_lag} days after its rain passed ${t.mm} mm (${DG.fmt(s.total_day)}).`).join(' ') + ' An early storm with little rain behind it does not start the green.'
+    : '';
+}
+
+function table(data) {
+  const tb = $('table').tBodies[0];
+  $('th-total').textContent = `${data.total.mm} mm by`;
+  data.seasons.filter((s) => s.greenup || s.soak).forEach((s) => {
+    const tr = tb.insertRow();
+    [s.season, s.soak ? DG.fmtY(s.soak) : '—', s.total_day ? DG.fmtY(s.total_day) : '—', s.greenup ? DG.fmtY(s.greenup) : '—', s.golddown ? DG.fmtY(s.golddown) : '—']
+      .forEach((v) => { tr.insertCell().textContent = v; });
+  });
+}
+
+fetch('data.json').then((r) => r.json()).then((data) => {
+  $('headline').textContent = DG.headline(data.stats);
+  const t = data.total, st = data.stats;
+  const inch = (mm) => (mm / 25.4).toFixed(1);
+  $('lede2').textContent = `It is not the calendar, and it is not the first storm. It is how much rain has added up: in most years the hills go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes about ${t.mm} mm (${inch(t.mm)} inches).`;
+  $('step').textContent = data.products === 'Terra' ? 16 : 8;
+  $('key-total').textContent = `rain since Aug 1 passes ${t.mm} mm`;
+  $('failed').textContent = `The first idea was that the first soaking week (${data.rule.soak_mm} mm in ${data.rule.soak_days} days) sets the date. It is a gate, not a clock: in ${st.after_soak} of ${st.n} seasons the green came after it, but anywhere from ${st.lag_min} to ${st.lag_max} days after, and it predicts the green barely better than the calendar (off by ${t.loo.soak.mae} days on average, against ${t.loo.calendar.mae}). The correlation was ${st.r.toFixed(2)}, under the 0.6 this page set itself before looking. The ${t.mm} mm rule was found after that, so it is scored only on seasons it was not fitted to: right within three weeks in ${t.loo.total.within21} of ${t.loo.total.of}.`;
+  const today = new Date().toISOString().slice(0, 10);
+  const c = DG.current(data, today);
+  $('now-season').textContent = `This season, ${c.season}`;
+  $('now').textContent = DG.nowLine(c, data);
+  stripes(data);
+  scatter(data);
+  table(data);
+  $('method').textContent = `Green means the satellite greenness (NDVI) of ${data.place.pixels} grassland pixels round the Dish crossed halfway from that season's summer floor to its winter peak. The ${t.mm} mm threshold and the wait after it were chosen leave-one-out: each season was predicted from a threshold and wait picked on the other ${t.loo.total.of - 1}, and ${t.mm} mm was the most common pick (every pick was ${t.picks[0]}–${t.picks[t.picks.length - 1]} mm). The soaking weeks were checked against two NOAA rain gauges within 4 km. Built ${data.built} from ${data.products}; rain through ${DG.fmtY(data.rain_last)}.`;
+  document.body.dataset.ready = '1';
+});
+</script>
+</body>
+</html>
