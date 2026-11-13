@@ -178,10 +178,28 @@ fetch('data.json').then((r) => r.json()).then((data) => {
   $('step').textContent = data.products === 'Terra' ? 16 : 8;
   $('key-total').textContent = `rain since Aug 1 passes ${t.mm} mm`;
   $('failed').textContent = `The first idea was that the first soaking week (${data.rule.soak_mm} mm in ${data.rule.soak_days} days) sets the date. It is a gate, not a clock: in ${st.after_soak} of ${st.n} seasons the green came after it, but anywhere from ${st.lag_min} to ${st.lag_max} days after, and it predicts the green barely better than the calendar (off by ${t.loo.soak.mae} days on average, against ${t.loo.calendar.mae}). The correlation was ${st.r.toFixed(2)}, under the 0.6 this page set itself before looking. The ${t.mm} mm rule was found after that, so it is scored only on seasons it was not fitted to: right within three weeks in ${t.loo.total.within21} of ${t.loo.total.of}.`;
-  const today = new Date().toISOString().slice(0, 10);
-  const c = DG.current(data, today);
-  $('now-season').textContent = `This season, ${c.season}`;
-  $('now').textContent = DG.nowLine(c, data);
+  // The card uses the built data at once, then rain since the build fetched from the same
+  // archive build.py reads. If that fetch fails or is slow, the built line stays.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const now = (d) => {
+    const c = DG.current(d, today);
+    $('now-season').textContent = `This season, ${c.season}`;
+    $('now').textContent = DG.nowLine(c, d);
+  };
+  now(data);
+  const from = DG.addDays(data.rain_last, 1);
+  if (from <= today) {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 8000);
+    fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${data.place.lat}&longitude=${data.place.lon}&start_date=${from}&end_date=${today}&daily=precipitation_sum&timezone=America%2FLos_Angeles`, { signal: ctl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => {
+        const t = j.daily && j.daily.time, v = j.daily && j.daily.precipitation_sum;
+        if (!Array.isArray(t) || !Array.isArray(v) || t.length !== v.length) return;
+        const d = DG.topUp(data, t.map((x, i) => [x, v[i]]));
+        if (d.rain_last !== data.rain_last) { now(d); $('now').dataset.live = d.rain_last; }
+      })
+      .catch(() => {});
+  }
   stripes(data);
   scatter(data);
   table(data);

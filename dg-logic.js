@@ -70,6 +70,36 @@
       prediction: reached && !greened ? predict(data.total, reached) : null };
   }
 
+  // Rain the page fetched itself for the days after the build (Open-Meteo archive, the same
+  // source build.py reads). `days` is [[iso, mm], ...]. Days on or before data.rain_last are
+  // already counted; the first missing value ends the top-up, so "as of" never skips a gap.
+  // Returns a copy of data with each touched season's rain_to_date and total_day moved on.
+  function topUp(data, days) {
+    const out = { ...data, seasons: data.seasons.map((s) => ({ ...s })) };
+    for (const [d, mm] of days) {
+      if (d <= out.rain_last) continue;
+      if (typeof mm !== 'number' || !isFinite(mm) || mm < 0) break;
+      const y = seasonY(d);
+      let row = out.seasons.find((s) => s.y === y);
+      if (!row) {
+        row = { y, season: `${y}-${String((y + 1) % 100).padStart(2, '0')}`, soak: null, partial: true, rain_to_date: 0, total_day: null };
+        out.seasons.push(row);
+      }
+      row.rain_to_date = Math.round(((row.rain_to_date || 0) + mm) * 10) / 10;
+      if (!row.total_day && row.rain_to_date >= out.total.mm) row.total_day = d;
+      out.rain_last = d;
+    }
+    return out;
+  }
+
+  // How this season stands: of the past seasons, how many had passed the threshold by the same
+  // day of their season. Counted by day of season so a leap February does not shift it.
+  function pace(data, today) {
+    const y = seasonY(today), day = dayOfSeason(today, y);
+    const past = data.seasons.filter((s) => s.y < y);
+    return { by: past.filter((s) => s.total_day && dayOfSeason(s.total_day, s.y) <= day).length, of: past.length };
+  }
+
   function headline(stats) {
     return `In ${stats.n} seasons the Dish has turned green as early as ${fmt(stats.earliest.greenup)} and as late as ${fmt(stats.latest.greenup)} — ${stats.spread_days} days apart.`;
   }
@@ -78,10 +108,12 @@
     const t = data.total;
     if (c.greened) return `The hills have greened this season (${fmt(c.greened)}).`;
     if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.`;
-    return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}. The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes about ${t.mm} mm.`;
+    const p = pace(data, data.rain_last);
+    const by = p.of ? ` By ${fmt(data.rain_last)}, ${p.by} of the last ${p.of} seasons had passed it.` : '';
+    return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}: ${Math.max(1, Math.round(t.mm - c.rain))} mm short of the ${t.mm} mm that comes before the green.${by} The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes it.`;
   }
 
-  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, headline, nowLine };
+  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, headline, nowLine };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.DG = api;
 })();
