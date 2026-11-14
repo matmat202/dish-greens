@@ -38,6 +38,12 @@
   svg .diag { stroke: var(--line); stroke-dasharray: 3 3; }
   svg .dot { fill: var(--fg); }
   svg .dot.odd { fill: var(--rain); }
+  svg .past { fill: none; stroke: var(--mute); stroke-opacity: 0.35; stroke-width: 1; }
+  svg .med { fill: none; stroke: var(--mute); stroke-width: 1.6; stroke-dasharray: 5 3; }
+  svg .thr { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 2 3; }
+  svg .cur { fill: none; stroke: var(--rain); stroke-width: 2.6; stroke-linejoin: round; }
+  svg .cur-end { fill: var(--rain); }
+  #rain { margin-top: 12px; }
   .key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 0; font-size: 0.9rem; color: var(--mute); align-items: center; }
   .key i { display: inline-block; vertical-align: -2px; margin-right: 6px; }
   .ramp { width: 80px; height: 12px; border-radius: 2px; }
@@ -53,7 +59,16 @@
   <p class="lede" id="headline"></p>
   <p id="lede2"></p>
 
-  <div class="card" id="now-card"><b id="now-season"></b><span id="now"></span></div>
+  <div class="card" id="now-card"><b id="now-season"></b><span id="now"></span>
+    <div id="rain-box">
+      <svg id="rain" role="img"></svg>
+      <div class="key">
+        <span><svg width="22" height="12" style="display:inline;width:22px;margin-right:6px"><line class="cur" x1="1" y1="6" x2="21" y2="6"/></svg>this season</span>
+        <span><svg width="22" height="12" style="display:inline;width:22px;margin-right:6px"><line class="med" x1="1" y1="6" x2="21" y2="6"/></svg><span id="key-med"></span></span>
+        <span><svg width="22" height="12" style="display:inline;width:22px;margin-right:6px"><line class="past" x1="1" y1="6" x2="21" y2="6"/></svg>each past season</span>
+      </div>
+    </div>
+  </div>
 
   <h2>Every season since 2000, gold to green</h2>
   <p class="mute">One row per season, August on the left to July on the right. Each cell is the colour of the grass from a satellite, every <span id="step"></span> days.</p>
@@ -160,6 +175,38 @@ function scatter(data) {
     : '';
 }
 
+// The card's chart: rain since Aug 1, every past season faint, their median dashed, this season
+// bold up to its last day of rain. Drawn again when the page tops up its rain.
+function rainChart(data, today) {
+  const svg = $('rain'), y0 = DG.seasonY(today), r = DG.rainSoFar(data, y0), N = r.median.length;
+  svg.replaceChildren();
+  $('rain-box').hidden = !r.now.length || !N || r.now.length > N;
+  if ($('rain-box').hidden) return;
+  const W = Math.max(280, Math.round(svg.getBoundingClientRect().width)), H = Math.round(Math.min(220, W * 0.55));
+  const L = 30, R = 8, T = 8, B = 20, MAX = 200;
+  svg.dataset.w = W; svg.dataset.h = H;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const x = (k) => L + (k / (N - 1)) * (W - L - R), y = (mm) => H - B - (mm / MAX) * (H - B - T);
+  el('rect', { x: L, y: T, width: W - L - R, height: H - B - T }, el('clipPath', { id: 'rain-clip' }, svg));
+  const ax = el('g', { class: 'ax' }, svg);
+  for (const mm of [0, 50, 100, 150, 200]) {
+    el('line', { class: 'tick', x1: L, x2: W - R, y1: y(mm), y2: y(mm) }, ax);
+    el('text', { x: 0, y: y(mm) + 4 }, ax, mm === MAX ? `${mm} mm` : String(mm));
+  }
+  MON.slice(0, 7).forEach((m, i) => { if (W >= 480 || i % 2 === 0) el('text', { x: x(MDAY[i]) + 1, y: H - 4 }, ax, m); });
+  const line = (c, cls) => el('polyline', { class: cls, points: c.map((v, k) => `${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' '), 'clip-path': 'url(#rain-clip)' }, svg);
+  r.past.forEach((c) => line(c.slice(0, N), 'past'));
+  line(r.median, 'med');
+  const t = data.total.mm;
+  el('line', { class: 'thr', x1: L, x2: W - R, y1: y(t), y2: y(t) }, svg);
+  el('text', { x: W - R - 2, y: y(t) - 4, 'text-anchor': 'end' }, ax, `${t} mm`);
+  line(r.now, 'cur');
+  const k = r.now.length - 1;
+  el('circle', { class: 'cur-end', cx: x(k).toFixed(1), cy: y(Math.min(r.now[k], MAX)).toFixed(1), r: 3.5 }, svg);
+  $('key-med').textContent = `median of the last ${r.past.length} seasons${r.typical != null ? ` (${Math.round(r.typical)} mm by ${DG.fmt(data.rain_last)})` : ''}`;
+  svg.setAttribute('aria-label', `Rain since August 1: this season ${r.now[k]} mm by ${DG.fmt(data.rain_last)}; the median of the last ${r.past.length} seasons had ${Math.round(r.typical)} mm by then`);
+}
+
 function table(data) {
   const tb = $('table').tBodies[0];
   $('th-total').textContent = `${data.total.mm} mm by`;
@@ -185,6 +232,7 @@ fetch('data.json').then((r) => r.json()).then((data) => {
     const c = DG.current(d, today);
     $('now-season').textContent = `This season, ${c.season}`;
     $('now').textContent = DG.nowLine(c, d);
+    rainChart(d, today);
   };
   now(data);
   const from = DG.addDays(data.rain_last, 1);

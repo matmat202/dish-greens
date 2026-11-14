@@ -73,20 +73,21 @@
   // Rain the page fetched itself for the days after the build (Open-Meteo archive, the same
   // source build.py reads). `days` is [[iso, mm], ...]. Days on or before data.rain_last are
   // already counted; the first missing value ends the top-up, so "as of" never skips a gap.
-  // Returns a copy of data with each touched season's rain_to_date and total_day moved on.
+  // Returns a copy of data with each touched season's rain_to_date, total_day and cum moved on.
   function topUp(data, days) {
-    const out = { ...data, seasons: data.seasons.map((s) => ({ ...s })) };
+    const out = { ...data, seasons: data.seasons.map((s) => ({ ...s, cum: (s.cum || []).slice() })) };
     for (const [d, mm] of days) {
       if (d <= out.rain_last) continue;
       if (typeof mm !== 'number' || !isFinite(mm) || mm < 0) break;
       const y = seasonY(d);
       let row = out.seasons.find((s) => s.y === y);
       if (!row) {
-        row = { y, season: `${y}-${String((y + 1) % 100).padStart(2, '0')}`, soak: null, partial: true, rain_to_date: 0, total_day: null };
+        row = { y, season: `${y}-${String((y + 1) % 100).padStart(2, '0')}`, soak: null, partial: true, rain_to_date: 0, total_day: null, cum: [] };
         out.seasons.push(row);
       }
       row.rain_to_date = Math.round(((row.rain_to_date || 0) + mm) * 10) / 10;
       if (!row.total_day && row.rain_to_date >= out.total.mm) row.total_day = d;
+      if (row.cum.length === dayOfSeason(d, y)) row.cum.push(Math.round(row.rain_to_date));
       out.rain_last = d;
     }
     return out;
@@ -98,6 +99,22 @@
     const y = seasonY(today), day = dayOfSeason(today, y);
     const past = data.seasons.filter((s) => s.y < y);
     return { by: past.filter((s) => s.total_day && dayOfSeason(s.total_day, s.y) <= day).length, of: past.length };
+  }
+
+  // Rain since Aug 1 by day of season (build.py's cum, whole mm): this season's curve, every
+  // earlier season's, and their median on each day all of them cover. `typical` is that median
+  // on this season's last day, so "a typical season had N mm by now" compares like with like.
+  function rainSoFar(data, y) {
+    const row = data.seasons.find((s) => s.y === y);
+    const now = (row && row.cum) || [];
+    const past = data.seasons.filter((s) => s.y < y && s.cum && s.cum.length).map((s) => s.cum);
+    const median = [];
+    for (let k = 0; past.length && past.every((c) => c.length > k); k++) {
+      const v = past.map((c) => c[k]).sort((a, b) => a - b), h = v.length >> 1;
+      median.push(v.length % 2 ? v[h] : (v[h - 1] + v[h]) / 2);
+    }
+    const typical = now.length && median.length >= now.length ? median[now.length - 1] : null;
+    return { now, past, median, typical };
   }
 
   function headline(stats) {
@@ -113,7 +130,7 @@
     return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}: ${Math.max(1, Math.round(t.mm - c.rain))} mm short of the ${t.mm} mm that comes before the green.${by} The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes it.`;
   }
 
-  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, headline, nowLine };
+  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, rainSoFar, headline, nowLine };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.DG = api;
 })();
