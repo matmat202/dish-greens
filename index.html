@@ -236,15 +236,16 @@ fetch('data.json').then((r) => r.json()).then((data) => {
     rainChart(d, today);
   };
   now(data);
-  const from = DG.addDays(data.rain_last, 1);
-  if (from <= today) {
+  // Finished days only: the archive's value for today is part forecast.
+  const from = DG.addDays(data.rain_last, 1), until = DG.addDays(today, -1);
+  if (from <= until) {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 8000);
-    fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${data.place.lat}&longitude=${data.place.lon}&start_date=${from}&end_date=${today}&daily=precipitation_sum&timezone=America%2FLos_Angeles`, { signal: ctl.signal })
+    fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${data.place.lat}&longitude=${data.place.lon}&start_date=${from}&end_date=${until}&daily=precipitation_sum&timezone=America%2FLos_Angeles`, { signal: ctl.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((j) => {
         const t = j.daily && j.daily.time, v = j.daily && j.daily.precipitation_sum;
         if (!Array.isArray(t) || !Array.isArray(v) || t.length !== v.length) return;
-        const d = DG.topUp(data, t.map((x, i) => [x, v[i]]));
+        const d = DG.topUp(data, t.map((x, i) => [x, v[i]]), today);
         if (d.rain_last !== data.rain_last) { now(d); $('now').dataset.live = d.rain_last; }
       })
       .catch(() => {});

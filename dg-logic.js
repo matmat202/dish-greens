@@ -73,11 +73,14 @@
   // Rain the page fetched itself for the days after the build (Open-Meteo archive, the same
   // source build.py reads). `days` is [[iso, mm], ...]. Days on or before data.rain_last are
   // already counted; the first missing value ends the top-up, so "as of" never skips a gap.
+  // `today` is unfinished: the archive fills it with forecast (10.1 mm at noon on 2026-11-16
+  // against ~3 mm at the airports), so it and anything after it end the top-up.
   // Returns a copy of data with each touched season's rain_to_date, total_day and cum moved on.
-  function topUp(data, days) {
+  function topUp(data, days, today) {
     const out = { ...data, seasons: data.seasons.map((s) => ({ ...s, cum: (s.cum || []).slice() })) };
     for (const [d, mm] of days) {
       if (d <= out.rain_last) continue;
+      if (today && d >= today) break;
       if (typeof mm !== 'number' || !isFinite(mm) || mm < 0) break;
       const y = seasonY(d);
       let row = out.seasons.find((s) => s.y === y);
