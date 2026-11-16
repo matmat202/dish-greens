@@ -1,0 +1,43 @@
+:root { --paper: #f7f6f4; --ink: #1d1a18; --mute: #5f5953; --red: #2f6b2a; --green: #5b8f3c; --gold: #a8730f; --far: #8a857e; --land: #e4e1da; }
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); }
+body { margin: 0; font: 18px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+/* The plot box: the SVG fills it; % labels hang left of it, slide labels below it. */
+#plot { position: fixed; z-index: 0; pointer-events: none; left: 42vw; right: 3vw; top: 10vh; bottom: 16vh; }
+#chart { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+#chart g { transition: opacity .6s; }
+#chart line.grid { stroke: #dcd8d1; stroke-width: 1; }
+#chart text { font: 12px/1 ui-monospace, Menlo, monospace; }
+#chart .tick { fill: var(--mute); }
+#chart .end { text-anchor: end; } #chart .mid { text-anchor: middle; }
+#chart .lab { fill: var(--ink); font-weight: 700; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+main { position: relative; z-index: 3; width: 34vw; margin-left: 3vw; }
+.step { min-height: 100vh; display: flex; align-items: center; }
+.step > div { background: rgba(247,246,244,.94); padding: 1.1em 1.3em; border-top: 3px solid var(--ink); }
+h1 { font: 700 clamp(34px, 4.6vw, 64px)/1.02 system-ui, sans-serif; margin: 0 0 .3em; letter-spacing: -.01em; }
+h2 { font: 700 26px/1.15 system-ui, sans-serif; margin: 0 0 .4em; }
+.kicker { font: 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin: 0 0 1em; }
+p { margin: 0 0 .8em; }
+p:last-child { margin-bottom: 0; }
+b[data-fact] { color: var(--red); font-variant-numeric: tabular-nums; }
+.w { font-style: italic; font-weight: 700; }
+.small { font-size: 14px; color: var(--mute); }
+a { color: var(--red); }
+#err { display: none; }
+body.failed #err { display: block; position: fixed; z-index: 9; left: 44vw; top: 40vh; color: var(--red); }
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  #plot { left: 11vw; right: 4vw; top: 4vh; bottom: 66vh; }
+  main { width: auto; margin: 0 4vw; }
+  .step { align-items: flex-start; padding-top: 42vh; padding-bottom: 6vh; min-height: 100vh; }
+  #chart text { font-size: 10px; }
+}
+#chart .cat { fill: var(--mute); font-weight: 700; }
+#chart line.axisline { stroke: var(--mute); }
+#chart rect.band { fill: var(--land); opacity: .8; }
+#chart rect.bar { fill: var(--green); }
+#chart rect.bar.dim { opacity: .45; }
+#chart circle.dot { stroke: var(--paper); stroke-width: 1; }
+#chart circle.gu { fill: var(--ink); }
+#chart circle.gd { fill: var(--gold); }

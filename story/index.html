@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The green wanders, the gold keeps an appointment · When does the Dish turn green? A story</title>
+<meta name="description" content="A story from When does the Dish turn green?: over 26 seasons the Stanford Dish hills turned green anywhere in a 133-day window, but went gold again inside 46 days, and a late green never meant a late gold. What moves the gold is the rain in March and April.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="plot" aria-hidden="true"></div>
+<p id="err" role="alert"></p>
+<main>
+
+<section class="step" data-step="bars"><div>
+  <p class="kicker">When does the Dish turn green? · a story</p>
+  <h1>The green wanders, the gold keeps an appointment</h1>
+  <p><a href="../">When does the Dish turn green?</a> reads NASA satellite pictures of the
+  grass on the Stanford Dish hills. Each bar is one season, <b data-fact="first"></b> to
+  <b data-fact="last"></b>: it starts the day the hills turned green and ends the day they
+  went gold again. <b data-fact="n"></b> seasons.</p>
+  <p>The bars start all over the place. They end almost in a line.</p>
+  <p class="small">Scroll ↓</p>
+</div></section>
+
+<section class="step" data-step="starts"><div>
+  <p class="kicker">Chapter 1 · The start</p>
+  <h2>Green comes any time over four months</h2>
+  <p>The earliest green was <b data-fact="green_first"></b>; the latest, <b data-fact="green_last"></b>.
+  That is a window of <b data-fact="green_spread"></b>, and a typical season sits
+  <b data-fact="green_sd"></b> from the average (one standard deviation).</p>
+  <p>The page’s own answer to why: the green waits for the rain to add up, and the rain
+  arrives when it likes.</p>
+</div></section>
+
+<section class="step" data-step="ends"><div>
+  <p class="kicker">Chapter 2 · The end</p>
+  <h2>Gold comes inside seven weeks</h2>
+  <p>The earliest gold was <b data-fact="gold_first"></b>; the latest, <b data-fact="gold_last"></b>:
+  <b data-fact="gold_spread"></b> end to end, and <b data-fact="gold_sd"></b> for a typical
+  season. The start wanders <b data-fact="sd_ratio"></b> as far as the end.</p>
+</div></section>
+
+<section class="step" data-step="sorted"><div>
+  <p class="kicker">Chapter 3 · No making up</p>
+  <h2>A late green does not make a late gold</h2>
+  <p>Sort the seasons by when they turned green, and the gold dots stay in their band. The
+  correlation between the two days is <b data-fact="r_go"></b>: none. A season that starts
+  late is simply shorter.</p>
+  <p>The shortest green was <b data-fact="len_min_season"></b>, at <b data-fact="len_min"></b>
+  (the rain held off until February); the longest was <b data-fact="len_max_season"></b>, at
+  <b data-fact="len_max"></b>.</p>
+  <p class="small">The rule for “green” and “gold” is the page’s: half-way from the summer
+  baseline to the winter peak. Moved to 30% or 70% of the way, or to a fixed greenness, on
+  Terra alone or Terra and Aqua together (<b data-fact="n_variants"></b> versions), the gold
+  stays at <b data-fact="v_gold_lo"></b>–<b data-fact="v_gold_hi"></b>, the green at
+  <b data-fact="v_green_lo"></b>–<b data-fact="v_green_hi"></b>, and the correlation between
+  <b data-fact="v_r_lo"></b> and <b data-fact="v_r_hi"></b>: never positive.</p>
+</div></section>
+
+<section class="step" data-step="spring"><div>
+  <p class="kicker">Chapter 4 · What moves the gold</p>
+  <h2>The spring rain buys the weeks</h2>
+  <p>The gold does move a little, and it is the late rain that moves it. Sorted by the rain in
+  March and April, driest on top, the gold dots drift right. The five driest springs (at most
+  <b data-fact="dry5_mm"></b>) went gold around <b data-fact="dry5_gold"></b> on average; the
+  five wettest (<b data-fact="wet5_mm"></b> or more), around <b data-fact="wet5_gold"></b>,
+  <b data-fact="wet_later"></b> later.</p>
+  <p>Spring rain against the gold day: <b data-fact="r_spring"></b>. All the rain from August
+  to February: only <b data-fact="r_winter"></b>. The hills spend the winter’s rain on
+  turning green; what keeps them green is rain that is still falling.</p>
+  <p class="small">Found by looking, so checked two other ways: on Terra’s pictures alone the
+  correlation is <b data-fact="terra_spring_r"></b>, and with the Palo Alto rain gauge in
+  place of the weather model, <b data-fact="gauge_r"></b> (the <b data-fact="gauge_n"></b>
+  springs it reported nearly every day).</p>
+</div></section>
+
+<section class="step" data-step="bars"><div>
+  <p class="kicker">Epilogue · Watching it</p>
+  <h2>See this season</h2>
+  <p><a href="../">When does the Dish turn green?</a> follows the season in progress: the rain so
+  far against the amount that has, in past years, come a few weeks before the green.</p>
+  <p class="small">Data: NASA MODIS MOD13Q1 and MYD13Q1 greenness (NDVI), 250 m, the grass
+  pixels round the Dish, from the ORNL DAAC; rain from Open-Meteo’s ERA5 reanalysis and NOAA
+  GHCN gauge USC00046646. The days are the page’s own, from 16-day composites (8 days apart
+  with both satellites), so any one date can be a week out. This counts days; it does not
+  show why spring rain matters, though grass that still has water stays green. The program is
+  <a href="https://github.com/matmat202/dish-greens/blob/main/story/build_story.py">in the repository</a>.</p>
+</div></section>
+
+</main>
+<script type="module" src="story.js"></script>
+</body>
+</html>

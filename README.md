@@ -10,6 +10,11 @@ better: green-up follows the day the rain since August 1 passes about 85 mm.
 
 Live: https://matmat202.github.io/dish-greens/
 
+A story, at /story/: the green wanders, the gold keeps an appointment. Green-up came anywhere
+in a 133-day window, gold-down inside 46 days, and the two days are uncorrelated (r = -0.06)
+under every one of 12 versions of the rule; what moves the gold is March-April rain
+(r = 0.76). `story/build_story.py` makes every number from build.py's own rules.
+
 Data: ORNL DAAC MODIS subset service (MOD13Q1/MYD13Q1), Open-Meteo archive rainfall,
 NOAA GHCN gauges (Palo Alto COOP, CoCoRaHS Los Altos Hills) as a cross-check.
 
