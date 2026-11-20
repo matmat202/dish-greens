@@ -120,6 +120,15 @@
     return { now, past, median, typical };
   }
 
+  // The rain chart's y-axis: 200 mm holds most seasons to midwinter, but a wet one runs past
+  // it in November (2026-27 had 189 mm by Nov 19), so grow to the next 100 above this season.
+  function rainScale(nowMax) {
+    const max = Math.max(200, Math.ceil(((nowMax || 0) + 1) / 100) * 100), step = max > 200 ? 100 : 50;
+    const ticks = [];
+    for (let mm = 0; mm <= max; mm += step) ticks.push(mm);
+    return { max, ticks };
+  }
+
   function headline(stats) {
     return `In ${stats.n} seasons the Dish has turned green as early as ${fmt(stats.earliest.greenup)} and as late as ${fmt(stats.latest.greenup)} — ${stats.spread_days} days apart.`;
   }
@@ -127,13 +136,13 @@
   function nowLine(c, data) {
     const t = data.total;
     if (c.greened) return `The hills have greened this season (${fmt(c.greened)}).`;
-    if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.`;
+    if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.`;
     const p = pace(data, data.rain_last);
     const by = p.of ? ` By ${fmt(data.rain_last)}, ${p.by} of the last ${p.of} seasons had passed it.` : '';
     return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}: ${Math.max(1, Math.round(t.mm - c.rain))} mm short of the ${t.mm} mm that comes before the green.${by} The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes it.`;
   }
 
-  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, rainSoFar, headline, nowLine };
+  const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, rainSoFar, rainScale, headline, nowLine };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.DG = api;
 })();

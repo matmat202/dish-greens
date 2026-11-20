@@ -187,13 +187,13 @@ function rainChart(data, today) {
   $('rain-box').hidden = !r.now.length || !N || r.now.length > N;
   if ($('rain-box').hidden) return;
   const W = Math.max(280, Math.round(svg.getBoundingClientRect().width)), H = Math.round(Math.min(220, W * 0.55));
-  const L = 30, R = 8, T = 8, B = 20, MAX = 200;
+  const L = 30, R = 8, T = 8, B = 20, S = DG.rainScale(Math.max(0, ...r.now)), MAX = S.max;
   svg.dataset.w = W; svg.dataset.h = H;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const x = (k) => L + (k / (N - 1)) * (W - L - R), y = (mm) => H - B - (mm / MAX) * (H - B - T);
   el('rect', { x: L, y: T, width: W - L - R, height: H - B - T }, el('clipPath', { id: 'rain-clip' }, svg));
   const ax = el('g', { class: 'ax' }, svg);
-  for (const mm of [0, 50, 100, 150, 200]) {
+  for (const mm of S.ticks) {
     el('line', { class: 'tick', x1: L, x2: W - R, y1: y(mm), y2: y(mm) }, ax);
     el('text', { x: 0, y: y(mm) + 4 }, ax, mm === MAX ? `${mm} mm` : String(mm));
   }
@@ -219,7 +219,7 @@ function rainChart(data, today) {
   el('text', { x: W - R - 2, y: y(t) - 4, 'text-anchor': 'end' }, ax, `${t} mm`);
   line(r.now, 'cur');
   const k = r.now.length - 1;
-  el('circle', { class: 'cur-end', cx: x(k).toFixed(1), cy: y(Math.min(r.now[k], MAX)).toFixed(1), r: 3.5 }, svg);
+  el('circle', { class: 'cur-end', cx: x(k).toFixed(1), cy: y(r.now[k]).toFixed(1), r: 3.5 }, svg);
   $('key-med').textContent = `median of the last ${r.past.length} seasons${r.typical != null ? ` (${Math.round(r.typical)} mm by ${DG.fmt(data.rain_last)})` : ''}`;
   svg.setAttribute('aria-label', `Rain since August 1: this season ${r.now[k]} mm by ${DG.fmt(data.rain_last)}; the median of the last ${r.past.length} seasons had ${Math.round(r.typical)} mm by then${win ? `; green expected between ${DG.fmt(win.soonest)} and ${DG.fmt(win.latest)}` : ''}`);
 }
