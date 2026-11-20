@@ -136,6 +136,9 @@
   function nowLine(c, data) {
     const t = data.total;
     if (c.greened) return `The hills have greened this season (${fmt(c.greened)}).`;
+    // Past the window with no green: say so, and when the satellite last looked, since its
+    // composites run weeks behind and "not green yet" may only mean "not seen yet".
+    if (c.prediction && data.rain_last > c.prediction.latest) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. The hills usually go green ${t.lag_q1}–${t.lag_q3} days after that, a window that closed ${fmt(c.prediction.latest)}, but the satellite has not shown it yet${c.last ? `: its latest view is from ${fmt(c.last[0])}` : ''}.`;
     if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.`;
     const p = pace(data, data.rain_last);
     const by = p.of ? ` By ${fmt(data.rain_last)}, ${p.by} of the last ${p.of} seasons had passed it.` : '';
