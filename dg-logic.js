@@ -133,16 +133,22 @@
     return `In ${stats.n} seasons the Dish has turned green as early as ${fmt(stats.earliest.greenup)} and as late as ${fmt(stats.latest.greenup)} — ${stats.spread_days} days apart.`;
   }
 
+  // When the satellite last looked, so "not green yet" can be read as "not seen yet": its
+  // composites land weeks after the days they cover (Nov 5's view arrived around Nov 20).
+  function seen(c) {
+    return c.last ? ` The satellite last saw the Dish on ${fmt(c.last[0])}: not green yet (greenness ${c.last[1].toFixed(2)}; green is ${c.threshold.toFixed(2)}).` : '';
+  }
+
   function nowLine(c, data) {
     const t = data.total;
     if (c.greened) return `The hills have greened this season (${fmt(c.greened)}).`;
     // Past the window with no green: say so, and when the satellite last looked, since its
     // composites run weeks behind and "not green yet" may only mean "not seen yet".
     if (c.prediction && data.rain_last > c.prediction.latest) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. The hills usually go green ${t.lag_q1}–${t.lag_q3} days after that, a window that closed ${fmt(c.prediction.latest)}, but the satellite has not shown it yet${c.last ? `: its latest view is from ${fmt(c.last[0])}` : ''}.`;
-    if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.`;
+    if (c.prediction) return `The rain since August passed ${t.mm} mm on ${fmt(c.reached)} and is at ${Math.round(c.rain)} mm as of ${fmt(data.rain_last)}. In past seasons the hills went green ${t.lag_q1}–${t.lag_q3} days after that: expect green between ${fmt(c.prediction.soonest)} and ${fmt(c.prediction.latest)}, most likely around ${fmt(c.prediction.likely)}.${seen(c)}`;
     const p = pace(data, data.rain_last);
     const by = p.of ? ` By ${fmt(data.rain_last)}, ${p.by} of the last ${p.of} seasons had passed it.` : '';
-    return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}: ${Math.max(1, Math.round(t.mm - c.rain))} mm short of the ${t.mm} mm that comes before the green.${by} The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes it.`;
+    return `${Math.round(c.rain)} mm of rain since August 1, as of ${fmt(data.rain_last)}: ${Math.max(1, Math.round(t.mm - c.rain))} mm short of the ${t.mm} mm that comes before the green.${by} The hills have tended to go green ${t.lag_q1}–${t.lag_q3} days after the season's rain passes it.${seen(c)}`;
   }
 
   const api = { seasonY, dayOfSeason, addDays, fmt, fmtY, colour, cells, complete, predict, current, topUp, pace, rainSoFar, rainScale, headline, nowLine };
