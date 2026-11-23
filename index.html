@@ -45,6 +45,7 @@
   svg .cur-end { fill: var(--rain); }
   svg .win { fill: var(--green); fill-opacity: 0.2; }
   svg .likely { stroke: var(--green); stroke-width: 2; }
+  svg .win-row { fill: none; stroke: var(--green); stroke-width: 2; stroke-dasharray: 4 2; }
   #rain { margin-top: 12px; }
   .key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 0; font-size: 0.9rem; color: var(--mute); align-items: center; }
   .key i { display: inline-block; vertical-align: -2px; margin-right: 6px; }
@@ -80,6 +81,7 @@
     <span><i class="ramp" id="ramp"></i>dry → green</span>
     <span><svg width="10" height="12" style="display:inline;width:10px"><rect class="soak" x="3" y="0" width="3" height="12"/></svg> <span id="key-total"></span></span>
     <span><svg width="12" height="12" style="display:inline;width:12px"><circle class="gu" cx="6" cy="6" r="4.5"/></svg> turned green</span>
+    <span id="key-row-win" hidden><svg width="22" height="12" style="display:inline;width:22px;margin-right:6px"><rect class="win-row" x="1" y="1" width="20" height="10"/></svg><span id="key-row-win-text"></span></span>
   </div>
 
   <h2>The later the rain adds up, the later the green</h2>
@@ -113,9 +115,11 @@ const el = (tag, attrs, parent, text) => {
 const MON = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
 const MDAY = [0, 31, 61, 92, 122, 153, 184, 212, 243, 273, 304, 334, 365];
 
-function stripes(data) {
+function stripes(data, today) {
   const svg = $('stripes');
+  svg.replaceChildren();   // drawn again once the rain is topped up
   const rows = data.seasons.filter((s) => DG.cells(data, s.y).length);
+  const cs = DG.current(data, today);
   // Drawn at the container's own width, so 12px text stays 12px on a phone.
   const W = Math.max(320, Math.round(svg.getBoundingClientRect().width)), L = 58, R = 6, top = 18, rh = 14, gap = 3;
   svg.dataset.w = W;
@@ -141,7 +145,14 @@ function stripes(data) {
     });
     if (s.total_day) el('rect', { class: 'soak', x: (x(DG.dayOfSeason(s.total_day, s.y)) - 1.5).toFixed(1), y: y0 - 1, width: 3, height: rh + 2 }, g);
     if (s.greenup) el('circle', { class: 'gu', cx: x(DG.dayOfSeason(s.greenup, s.y)).toFixed(1), cy: y0 + rh / 2, r: 4.5 }, g);
+    // This season, waiting for green: the same window as the card's chart, on its own row.
+    if (s.y === cs.y && cs.prediction) {
+      const a = x(Math.min(365, DG.dayOfSeason(cs.prediction.soonest, s.y))), b = x(Math.min(365, DG.dayOfSeason(cs.prediction.latest, s.y)));
+      el('rect', { class: 'win-row', x: a.toFixed(1), y: y0 + 1, width: (b - a).toFixed(1), height: rh - 2 }, g);
+    }
   });
+  $('key-row-win').hidden = !cs.prediction;
+  $('key-row-win-text').textContent = cs.prediction ? `${cs.season}: expected green, ${DG.fmt(cs.prediction.soonest)} to ${DG.fmt(cs.prediction.latest)}` : '';
   $('ramp').style.background = `linear-gradient(90deg, ${[0.28, 0.4, 0.52, 0.64, 0.75].map((v) => DG.colour(v)).join(',')})`;
 }
 
@@ -250,6 +261,7 @@ fetch('data.json').then((r) => r.json()).then((data) => {
     $('now-season').textContent = `This season, ${c.season}`;
     $('now').textContent = DG.nowLine(c, d);
     rainChart(d, today);
+    stripes(d, today);
   };
   now(data);
   // Finished days only: the archive's value for today is part forecast.
@@ -266,7 +278,6 @@ fetch('data.json').then((r) => r.json()).then((data) => {
       })
       .catch(() => {});
   }
-  stripes(data);
   scatter(data);
   table(data);
   $('method').textContent = `Green means the satellite greenness (NDVI) of ${data.place.pixels} grassland pixels round the Dish crossed halfway from that season's summer floor to its winter peak. The ${t.mm} mm threshold and the wait after it were chosen leave-one-out: each season was predicted from a threshold and wait picked on the other ${t.loo.total.of - 1}, and ${t.mm} mm was the most common pick (every pick was ${t.picks[0]}–${t.picks[t.picks.length - 1]} mm). The soaking weeks were checked against two NOAA rain gauges within 4 km. Built ${data.built} from ${data.products}; rain through ${DG.fmtY(data.rain_last)}.`;
