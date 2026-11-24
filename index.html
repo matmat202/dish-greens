@@ -45,6 +45,9 @@
   svg .cur-end { fill: var(--rain); }
   svg .win { fill: var(--green); fill-opacity: 0.2; }
   svg .likely { stroke: var(--green); stroke-width: 2; }
+  svg .now-win { fill: var(--green); fill-opacity: 0.25; stroke: var(--green); stroke-width: 1; }
+  svg .now-dot { fill: none; stroke: var(--green); stroke-width: 2.5; }
+  svg .now-dot.greened { fill: var(--green); }
   svg .win-row { fill: none; stroke: var(--green); stroke-width: 2; stroke-dasharray: 4 2; }
   #rain { margin-top: 12px; }
   .key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 0; font-size: 0.9rem; color: var(--mute); align-items: center; }
@@ -156,10 +159,12 @@ function stripes(data, today) {
   $('ramp').style.background = `linear-gradient(90deg, ${[0.28, 0.4, 0.52, 0.64, 0.75].map((v) => DG.colour(v)).join(',')})`;
 }
 
-function scatter(data) {
+function scatter(data, today) {
   const svg = $('scatter');
+  svg.replaceChildren();   // drawn again once the rain is topped up
   const rows = DG.complete(data);
   const W = Math.max(320, Math.round(svg.getBoundingClientRect().width)), H = Math.round(Math.min(380, W * 0.75)), L = 52, B = 34, T = 10, R = 10;
+  svg.dataset.w = W; svg.dataset.h = H;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('aria-label', `Green-up date against the day ${data.total.mm} mm of rain had fallen, ${rows.length} seasons, correlation ${data.total.r}`);
   const lo = 40, hi = 245;   // Sep 10 .. Apr 3: every rain-total day and green-up on record, with room
@@ -183,8 +188,23 @@ function scatter(data) {
     el('circle', { class: 'dot' + (odd.includes(s) ? ' odd' : ''), cx: sx.toFixed(1), cy: gy.toFixed(1), r: 5, 'data-season': s.season }, svg);
     if (odd.includes(s)) el('text', { x: sx + 8, y: gy + 4 }, svg, s.season);
   });
-  const t = data.total, lo_ = t.loo;
-  $('scatter-note').textContent = `Each dot is a season: across, the day the rain since August 1 passed ${t.mm} mm; up, the day the hills turned green. Correlation ${t.r.toFixed(2)} over ${rows.length} seasons. Predicting each season from the others, this rule misses by ${lo_.total.mae} days on average, against ${lo_.calendar.mae} for "the usual date".`;
+  // This season, once its rain has passed the threshold: placed across on that day, and up as
+  // the same window as the card (a bar, a ring on the likeliest day), or on its green day.
+  const cs = DG.current(data, today), t = data.total, lo_ = t.loo;
+  let nowNote = '';
+  if (cs.reached && !rows.some((s) => s.y === cs.y)) {
+    const sx = x(DG.dayOfSeason(cs.reached, cs.y)), cy = (d) => y(Math.min(hi, DG.dayOfSeason(d, cs.y)));
+    const P = cs.prediction, mid = P ? P.likely : cs.greened;
+    if (P) el('rect', { class: 'now-win', x: (sx - 4).toFixed(1), y: cy(P.latest).toFixed(1), width: 8, height: (cy(P.soonest) - cy(P.latest)).toFixed(1) }, svg);
+    el('circle', { class: 'now-dot' + (P ? '' : ' greened'), cx: sx.toFixed(1), cy: cy(mid).toFixed(1), r: 5, 'data-season': cs.season }, svg);
+    const right = sx + 70 > W - R;
+    el('text', { class: 'win-label', x: (sx + (right ? -9 : 9)).toFixed(1), y: (cy(mid) + 4).toFixed(1), 'text-anchor': right ? 'end' : 'start' }, svg, P ? `${cs.season}?` : cs.season);
+    nowNote = P
+      ? ` The green ring is this season: its rain passed ${t.mm} mm on ${DG.fmt(cs.reached)}, so the bar shows where its dot should land, ${DG.fmt(P.soonest)} to ${DG.fmt(P.latest)}.`
+      : ` The green dot is this season: rain past ${t.mm} mm on ${DG.fmt(cs.reached)}, green on ${DG.fmt(cs.greened)}.`;
+  }
+  if (nowNote) svg.setAttribute('aria-label', svg.getAttribute('aria-label') + `; this season${cs.prediction ? ` expected green ${DG.fmt(cs.prediction.soonest)} to ${DG.fmt(cs.prediction.latest)}` : ` green ${DG.fmt(cs.greened)}`}`);
+  $('scatter-note').textContent = `Each dot is a season: across, the day the rain since August 1 passed ${t.mm} mm; up, the day the hills turned green. Correlation ${t.r.toFixed(2)} over ${rows.length} seasons. Predicting each season from the others, this rule misses by ${lo_.total.mae} days on average, against ${lo_.calendar.mae} for "the usual date".${nowNote}`;
   $('odd').textContent = odd.length
     ? odd.map((s) => `${s.season}, in blue, waited ${s.lag} days after its first soaking week (${DG.fmt(s.soak)} to ${DG.fmt(s.greenup)}), the longest on record, but ${s.total_lag} days after its rain passed ${t.mm} mm (${DG.fmt(s.total_day)}).`).join(' ') + ' An early storm with little rain behind it does not start the green.'
     : '';
@@ -262,6 +282,7 @@ fetch('data.json').then((r) => r.json()).then((data) => {
     $('now').textContent = DG.nowLine(c, d);
     rainChart(d, today);
     stripes(d, today);
+    scatter(d, today);
   };
   now(data);
   // Finished days only: the archive's value for today is part forecast.
@@ -278,7 +299,6 @@ fetch('data.json').then((r) => r.json()).then((data) => {
       })
       .catch(() => {});
   }
-  scatter(data);
   table(data);
   $('method').textContent = `Green means the satellite greenness (NDVI) of ${data.place.pixels} grassland pixels round the Dish crossed halfway from that season's summer floor to its winter peak. The ${t.mm} mm threshold and the wait after it were chosen leave-one-out: each season was predicted from a threshold and wait picked on the other ${t.loo.total.of - 1}, and ${t.mm} mm was the most common pick (every pick was ${t.picks[0]}–${t.picks[t.picks.length - 1]} mm). The soaking weeks were checked against two NOAA rain gauges within 4 km. Built ${data.built} from ${data.products}; rain through ${DG.fmtY(data.rain_last)}.`;
   document.body.dataset.ready = '1';
