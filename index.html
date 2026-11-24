@@ -46,6 +46,7 @@
   svg .win { fill: var(--green); fill-opacity: 0.2; }
   svg .likely { stroke: var(--green); stroke-width: 2; }
   svg .now-win { fill: var(--green); fill-opacity: 0.25; stroke: var(--green); stroke-width: 1; }
+  svg .now-label { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; font-weight: 600; }
   svg .now-dot { fill: none; stroke: var(--green); stroke-width: 2.5; }
   svg .now-dot.greened { fill: var(--green); }
   svg .win-row { fill: none; stroke: var(--green); stroke-width: 2; stroke-dasharray: 4 2; }
@@ -198,7 +199,7 @@ function scatter(data, today) {
     if (P) el('rect', { class: 'now-win', x: (sx - 4).toFixed(1), y: cy(P.latest).toFixed(1), width: 8, height: (cy(P.soonest) - cy(P.latest)).toFixed(1) }, svg);
     el('circle', { class: 'now-dot' + (P ? '' : ' greened'), cx: sx.toFixed(1), cy: cy(mid).toFixed(1), r: 5, 'data-season': cs.season }, svg);
     const right = sx + 70 > W - R;
-    el('text', { class: 'win-label', x: (sx + (right ? -9 : 9)).toFixed(1), y: (cy(mid) + 4).toFixed(1), 'text-anchor': right ? 'end' : 'start' }, svg, P ? `${cs.season}?` : cs.season);
+    el('text', { class: 'win-label now-label', x: (sx + (right ? -9 : 9)).toFixed(1), y: (cy(mid) + 4).toFixed(1), 'text-anchor': right ? 'end' : 'start' }, svg, P ? `${cs.season}?` : cs.season);
     nowNote = P
       ? ` The green ring is this season: its rain passed ${t.mm} mm on ${DG.fmt(cs.reached)}, so the bar shows where its dot should land, ${DG.fmt(P.soonest)} to ${DG.fmt(P.latest)}.`
       : ` The green dot is this season: rain past ${t.mm} mm on ${DG.fmt(cs.reached)}, green on ${DG.fmt(cs.greened)}.`;
